@@ -1,0 +1,39 @@
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  SELLER
+  CUSTOMER
+  DRIVER
+}
+
+enum AccountStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
+model User {
+  id              String        @id @default(uuid())
+  email           String?       @unique
+  phone           String        @unique
+  passwordHash    String
+  role            UserRole
+  status          AccountStatus @default(PENDING)
+
+  emailVerified   Boolean       @default(false)
+  phoneVerified   Boolean       @default(false)
+
+  createdAt       DateTime      @default(now())
+}
+
+model Otp {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+
+  code      String
+  type      String   // EMAIL or PHONE
+  expiresAt DateTime
+  used      Boolean  @default(false)
+}
