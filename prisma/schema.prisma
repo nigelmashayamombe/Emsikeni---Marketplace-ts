@@ -1,0 +1,137 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  SELLER
+  BUYER
+  DRIVER
+}
+
+enum AccountStatus {
+  PENDING
+  ACTIVE
+  DECLINED
+  INVITED
+}
+
+enum OtpType {
+  EMAIL
+  PHONE
+}
+
+enum DocumentType {
+  NATIONAL_ID
+  PROOF_OF_RESIDENCE
+  SELFIE
+  DRIVER_LICENSE
+  VEHICLE_DOCUMENT
+}
+
+enum EmailTokenType {
+  EMAIL_VERIFICATION
+}
+
+model User {
+  id            String        @id @default(uuid())
+  email         String        @unique
+  phone         String        @unique
+  passwordHash  String?
+  role          Role
+  status        AccountStatus @default(PENDING)
+  emailVerified Boolean       @default(false)
+  phoneVerified Boolean       @default(false)
+  isSuperAdmin  Boolean       @default(false)
+
+  fullName    String?
+  address     String?
+  gender      String?
+  dateOfBirth DateTime?
+  nationalId  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  otps          Otp[]
+  emailTokens   EmailToken[]
+  refreshTokens RefreshToken[]
+  documents     Document[]
+  driverDetail  DriverDetail?
+
+  // Invitations this user created
+  invitations Invitation[] @relation("UserInvitations")
+}
+
+model Invitation {
+  id         String    @id @default(uuid())
+  email      String
+  token      String    @unique
+  expiresAt  DateTime
+  accepted   Boolean   @default(false)
+  acceptedAt DateTime?
+
+  invitedById String?
+  invitedBy   User?   @relation("UserInvitations", fields: [invitedById], references: [id])
+
+  createdAt DateTime @default(now())
+}
+
+model Otp {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  codeHash  String
+  type      OtpType
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model EmailToken {
+  id        String         @id @default(uuid())
+  userId    String
+  user      User           @relation(fields: [userId], references: [id])
+  token     String         @unique
+  type      EmailTokenType
+  expiresAt DateTime
+  used      Boolean        @default(false)
+  createdAt DateTime       @default(now())
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  token     String   @unique
+  expiresAt DateTime
+  revoked   Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model Document {
+  id        String       @id @default(uuid())
+  userId    String
+  user      User         @relation(fields: [userId], references: [id])
+  type      DocumentType
+  url       String
+  createdAt DateTime     @default(now())
+}
+
+model DriverDetail {
+  id                 String   @id @default(uuid())
+  userId             String   @unique
+  user               User     @relation(fields: [userId], references: [id])
+  licenseNumber      String?
+  vehicleMake        String?
+  vehicleModel       String?
+  vehicleNumberPlate String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}

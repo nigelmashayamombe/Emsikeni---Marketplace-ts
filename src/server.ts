@@ -1,12 +1,22 @@
 import express, { Request, Response } from 'express';
+import { config } from './config/env';
+import { app } from './app';
 
-const app = express();
-const port = 3000;
+const port = config.port;
 
-app.get('/', (req: Request, res: Response) => {
-  res.send('Hello, world!');
+const server = app.listen(port, () => {
+  // eslint-disable-next-line no-console
+  console.log(`API listening on http://localhost:${port}`);
 });
 
-app.listen(port, () => {
-  console.log(`Server is running at http://localhost:${port}`);
-});
+const shutdown = () => {
+  server.close(() => {
+    // eslint-disable-next-line no-console
+    console.log('Server closed gracefully');
+    process.exit(0);
+  });
+};
+
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);
+

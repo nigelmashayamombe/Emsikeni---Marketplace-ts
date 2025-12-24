@@ -1,0 +1,29 @@
+---
+alwaysApply: true
+---
+
+NODE.JS & EXPRESS RULES
+- Use async/await everywhere
+- Never place business logic in controllers
+- Controllers must only:
+  - Validate input
+  - Call application services
+  - Map responses
+- Use middleware for cross-cutting concerns (auth, logging, rate limiting)
+- Use DTOs for input/output boundaries
+- Use environment-based configuration
+- Apply API versioning
+- Implement proper logging and monitoring
+- Ensure graceful shutdown and resource cleanup
+
+
+This project:
+- Uses Node.js + TypeScript + Express
+- Follows Clean Architecture + DDD
+- Uses feature-based folder structure
+- Controllers must be thin
+- Business logic lives in the domain layer
+- Uses PostgreSQL with Prisma
+- Uses JWT authentication
+- API is versioned (/api/v1)
+- Uses rate limiting and request validation
