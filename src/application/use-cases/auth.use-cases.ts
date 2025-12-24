@@ -1,4 +1,4 @@
-import { v4 as uuid } from 'uuid';
+import { randomUUID } from 'crypto';
 import { AccountStatus } from '../../domain/enums/account-status.enum';
 import { DocumentType } from '../../domain/enums/document-type.enum';
 import { EmailTokenType } from '../../domain/enums/email-token-type.enum';
@@ -49,18 +49,23 @@ export class RegisterUserUseCase {
 
   async execute(input: RegisterUserInput): Promise<{ userId: string }> {
     const isFirstUser = (await this.deps.userRepo.count()) === 0;
-    if (input.role === Role.ADMIN || input.role === Role.SUPER_ADMIN) {
-      if (!isFirstUser) {
-        throw new AppError({
-          message: 'Admin/SuperAdmin registration requires invitation',
-          statusCode: 403,
-          code: 'FORBIDDEN',
-        });
-      }
+    if (input.role === Role.ADMIN) {
+      throw new AppError({
+        message: 'Admin registration requires invitation',
+        statusCode: 403,
+        code: 'FORBIDDEN',
+      });
+    }
+    if (input.role === Role.SUPER_ADMIN && !isFirstUser) {
+      throw new AppError({
+        message: 'SuperAdmin already exists',
+        statusCode: 403,
+        code: 'FORBIDDEN',
+      });
     }
 
     const role = isFirstUser ? Role.SUPER_ADMIN : input.role;
-    const isSuperAdmin = isFirstUser;
+    const isSuperAdmin = role === Role.SUPER_ADMIN;
 
     const email = Email.create(input.email);
     const phone = PhoneNumber.create(input.phone);
@@ -92,6 +97,16 @@ export class RegisterUserUseCase {
       const driverDocuments =
         role === Role.DRIVER ? [DocumentType.DRIVER_LICENSE, DocumentType.VEHICLE_DOCUMENT] : [];
       const expectedDocs = [...requiredDocuments, ...driverDocuments];
+
+      const allDocKeys = Object.keys(input.documents ?? {});
+      const allowedDocTypes = Object.values(DocumentType);
+      const invalidDocTypes = allDocKeys.filter((key) => !allowedDocTypes.includes(key as DocumentType));
+      if (invalidDocTypes.length) {
+        throw new AppError({
+          message: `Invalid document types: ${invalidDocTypes.join(', ')}`,
+          statusCode: 400,
+        });
+      }
 
       if (!input.documents || expectedDocs.some((doc) => !input.documents?.[doc])) {
         throw new AppError({
@@ -128,11 +143,16 @@ export class RegisterUserUseCase {
     }
 
     if (input.documents) {
-      const documents = Object.entries(input.documents).map(([type, url]) => ({
-        type: type as DocumentType,
-        url,
-      }));
-      await this.deps.userRepo.addDocuments(created.id, documents);
+      const allowedDocTypes = new Set<DocumentType>(Object.values(DocumentType));
+      const documents = Object.entries(input.documents)
+        .filter(([type]) => allowedDocTypes.has(type as DocumentType))
+        .map(([type, url]) => ({
+          type: type as DocumentType,
+          url,
+        }));
+      if (documents.length) {
+        await this.deps.userRepo.addDocuments(created.id, documents);
+      }
     }
 
     if (input.driver) {
@@ -140,7 +160,7 @@ export class RegisterUserUseCase {
     }
 
     // email token
-    const emailToken = uuid();
+    const emailToken = randomUUID();
     await this.deps.emailTokenRepo.create({
       userId: created.id,
       token: emailToken,
@@ -354,7 +374,7 @@ export class InviteAdminUseCase {
       throw new AppError({ message: 'Only SuperAdmin can invite admins', statusCode: 403 });
     }
 
-    const token = uuid();
+    const token = randomUUID();
     const invitation = await this.deps.invitationRepo.create({
       email: Email.create(input.email).getValue(),
       token,
@@ -412,7 +432,7 @@ export class AcceptAdminInvitationUseCase {
     await this.deps.invitationRepo.markAccepted(invitation.id);
 
     // send verification artifacts
-    const emailToken = uuid();
+    const emailToken = randomUUID();
     await this.deps.emailTokenRepo.create({
       userId: created.id,
       token: emailToken,

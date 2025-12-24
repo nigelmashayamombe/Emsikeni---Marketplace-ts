@@ -13,9 +13,7 @@ export const registerSchema = z
     gender: z.string().optional(),
     dateOfBirth: z.string().optional(),
     nationalId: z.string().optional(),
-    documents: z
-      .record(z.nativeEnum(DocumentType), z.string().url({ message: 'Document must be a URL' }))
-      .optional(),
+    documents: z.record(z.string(), z.string().url({ message: 'Document must be a URL' })).optional(),
     driver: z
       .object({
         licenseNumber: z.string().optional(),
