@@ -245,7 +245,7 @@ export const buildSwaggerSpec = () => {
 
         '/api/v1/auth/approve-admin': {
           post: {
-            tags: ['Admin'],
+            tags: ['Super Admin'],
             summary: 'Approve admin registration (SuperAdmin only)',
             security: [{ bearerAuth: [] }],
             requestBody: {
@@ -260,7 +260,7 @@ export const buildSwaggerSpec = () => {
         },
         '/api/v1/auth/decline-admin': {
           post: {
-            tags: ['Admin'],
+            tags: ['Super Admin'],
             summary: 'Decline admin registration (SuperAdmin only)',
             security: [{ bearerAuth: [] }],
             requestBody: {
@@ -275,7 +275,7 @@ export const buildSwaggerSpec = () => {
         },
         '/api/v1/auth/approve-seller': {
           post: {
-            tags: ['Admin'],
+            tags: ['Super Admin'],
             summary: 'Approve seller after document review',
             security: [{ bearerAuth: [] }],
             requestBody: {
@@ -290,7 +290,7 @@ export const buildSwaggerSpec = () => {
         },
         '/api/v1/auth/decline-seller': {
           post: {
-            tags: ['Admin'],
+            tags: ['Super Admin'],
             summary: 'Decline seller after review',
             security: [{ bearerAuth: [] }],
             requestBody: {
@@ -305,7 +305,7 @@ export const buildSwaggerSpec = () => {
         },
         '/api/v1/auth/approve-driver': {
           post: {
-            tags: ['Admin'],
+            tags: ['Super Admin'],
             summary: 'Approve driver after document review',
             security: [{ bearerAuth: [] }],
             requestBody: {
@@ -320,7 +320,7 @@ export const buildSwaggerSpec = () => {
         },
         '/api/v1/auth/decline-driver': {
           post: {
-            tags: ['Admin'],
+            tags: ['Super Admin'],
             summary: 'Decline driver after review',
             security: [{ bearerAuth: [] }],
             requestBody: {
