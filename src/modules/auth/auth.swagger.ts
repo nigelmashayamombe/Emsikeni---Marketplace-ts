@@ -80,24 +80,7 @@ export const buildSwaggerSpec = () => {
               refreshToken: { type: 'string' },
             },
           },
-          InviteAdminRequest: {
-            type: 'object',
-            required: ['email', 'phone'],
-            properties: {
-              email: { type: 'string', format: 'email' },
-              phone: { type: 'string' },
-              fullName: { type: 'string' },
-            },
-          },
-          AcceptInvitationRequest: {
-            type: 'object',
-            required: ['token', 'password', 'phone'],
-            properties: {
-              token: { type: 'string' },
-              password: { type: 'string', minLength: 8 },
-              phone: { type: 'string' },
-            },
-          },
+
           ApproveRequest: {
             type: 'object',
             required: ['userId'],
@@ -127,7 +110,7 @@ export const buildSwaggerSpec = () => {
         '/api/v1/auth/register': {
           post: {
             tags: ['Public'],
-            summary: 'Register buyer/seller/driver (first user becomes SuperAdmin)',
+            summary: 'Register buyer/seller/driver/admin (Admin registration requires SuperAdmin approval)',
             requestBody: {
               required: true,
               content: {
@@ -232,32 +215,34 @@ export const buildSwaggerSpec = () => {
             },
           },
         },
-        '/api/v1/auth/invite-admin': {
+
+        '/api/v1/auth/approve-admin': {
           post: {
             tags: ['Admin'],
-            summary: 'Invite an admin (SuperAdmin only)',
+            summary: 'Approve admin registration (SuperAdmin only)',
             security: [{ bearerAuth: [] }],
             requestBody: {
               required: true,
-              content: { 'application/json': { schema: { $ref: '#/components/schemas/InviteAdminRequest' } } },
+              content: { 'application/json': { schema: { $ref: '#/components/schemas/ApproveRequest' } } },
             },
             responses: {
-              201: { description: 'Invitation email sent' },
-              403: { description: 'Forbidden', content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } } },
+              200: { description: 'Admin approved' },
+              404: { description: 'Admin not found', content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } } },
             },
           },
         },
-        '/api/v1/auth/accept-invitation': {
+        '/api/v1/auth/decline-admin': {
           post: {
             tags: ['Admin'],
-            summary: 'Accept admin invitation and set password',
+            summary: 'Decline admin registration (SuperAdmin only)',
+            security: [{ bearerAuth: [] }],
             requestBody: {
               required: true,
-              content: { 'application/json': { schema: { $ref: '#/components/schemas/AcceptInvitationRequest' } } },
+              content: { 'application/json': { schema: { $ref: '#/components/schemas/ApproveRequest' } } },
             },
             responses: {
-              201: { description: 'Admin account created pending verification' },
-              400: { description: 'Invalid/expired invitation', content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } } },
+              200: { description: 'Admin declined' },
+              404: { description: 'Admin not found', content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } } },
             },
           },
         },

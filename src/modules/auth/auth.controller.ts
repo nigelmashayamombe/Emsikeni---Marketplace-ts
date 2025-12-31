@@ -29,17 +29,14 @@ export class AuthController {
     res.json({ success: true, data: result });
   };
 
-  inviteAdmin = async (req: Request, res: Response) => {
-    if (!req.user?.sub) {
-      throw new AppError({ message: 'Unauthorized', statusCode: 401 });
-    }
-    await authService.inviteAdmin(req.body, req.user.sub);
-    res.status(201).json({ success: true, message: 'Invitation sent' });
+  approveAdmin = async (req: Request, res: Response) => {
+    await authService.approveAdmin(req.body);
+    res.json({ success: true, message: 'Admin approved' });
   };
 
-  acceptInvitation = async (req: Request, res: Response) => {
-    const result = await authService.acceptInvitation(req.body);
-    res.status(201).json({ success: true, data: result });
+  declineAdmin = async (req: Request, res: Response) => {
+    await authService.declineAdmin(req.body);
+    res.json({ success: true, message: 'Admin declined' });
   };
 
   approveSeller = async (req: Request, res: Response) => {

@@ -1,9 +1,9 @@
 export interface IEmailService {
   sendEmailVerification(params: { to: string; token: string }): Promise<void>;
-  sendAdminInvitation(params: {
+  sendAdminActivationRequest(params: {
     to: string;
-    invitationToken: string;
-    invitedBy?: string;
+    newAdminName: string;
+    newAdminEmail: string;
   }): Promise<void>;
   sendApprovalNotification(params: {
     to: string;

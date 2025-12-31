@@ -3,12 +3,12 @@ import { AccountStatus } from '../../domain/enums/account-status.enum';
 import { Role } from '../../domain/enums/role.enum';
 import { AppError } from '../../shared/errors/app-error';
 import {
-  AcceptAdminInvitationUseCase,
+  ApproveAdminUseCase,
   ApproveDriverUseCase,
   ApproveSellerUseCase,
+  DeclineAdminUseCase,
   DeclineDriverUseCase,
   DeclineSellerUseCase,
-  InviteAdminUseCase,
   LoginUseCase,
   RefreshTokenUseCase,
   RegisterUserUseCase,
@@ -16,7 +16,7 @@ import {
   VerifyPhoneUseCase,
 } from '../../application/use-cases/auth.use-cases';
 import { EmailTokenRepository } from '../../infrastructure/repositories/email-token.repository';
-import { InvitationRepository } from '../../infrastructure/repositories/invitation.repository';
+
 import { OtpRepository } from '../../infrastructure/repositories/otp.repository';
 import { RefreshTokenRepository } from '../../infrastructure/repositories/refresh-token.repository';
 import { UserRepository } from '../../infrastructure/repositories/user.repository';
@@ -25,9 +25,8 @@ import { OtpService } from '../../infrastructure/services/otp.service';
 import { TokenService } from '../../infrastructure/services/token.service';
 import { HashService } from '../../infrastructure/services/hash.service';
 import {
-  AcceptAdminInvitationInput,
+
   ApproveUserInput,
-  InviteAdminInput,
   LoginInput,
   RefreshTokenInput,
   RegisterUserInput,
@@ -41,8 +40,8 @@ export class AuthService {
   private readonly verifyPhoneUseCase: VerifyPhoneUseCase;
   private readonly loginUseCase: LoginUseCase;
   private readonly refreshUseCase: RefreshTokenUseCase;
-  private readonly inviteAdminUseCase: InviteAdminUseCase;
-  private readonly acceptInvitationUseCase: AcceptAdminInvitationUseCase;
+  private readonly approveAdminUseCase: ApproveAdminUseCase;
+  private readonly declineAdminUseCase: DeclineAdminUseCase;
   private readonly approveSellerUseCase: ApproveSellerUseCase;
   private readonly declineSellerUseCase: DeclineSellerUseCase;
   private readonly approveDriverUseCase: ApproveDriverUseCase;
@@ -52,7 +51,7 @@ export class AuthService {
     const userRepo = new UserRepository();
     const otpRepo = new OtpRepository();
     const emailTokenRepo = new EmailTokenRepository();
-    const invitationRepo = new InvitationRepository();
+
     const refreshTokenRepo = new RefreshTokenRepository();
     const tokenService = new TokenService(config.jwt);
     const emailService = new EmailService({
@@ -73,14 +72,14 @@ export class AuthService {
       userRepo,
       otpRepo,
       emailTokenRepo,
-      invitationRepo,
+
       refreshTokenRepo,
       emailService,
       tokenService,
       otpService,
       hashService,
       otpExpiryMinutes: config.otpExpiryMinutes,
-    refreshTokenTtlDays: config.refreshTokenTtlDays,
+      refreshTokenTtlDays: config.refreshTokenTtlDays,
     };
 
     this.registerUseCase = new RegisterUserUseCase(deps);
@@ -88,8 +87,8 @@ export class AuthService {
     this.verifyPhoneUseCase = new VerifyPhoneUseCase(deps);
     this.loginUseCase = new LoginUseCase(deps);
     this.refreshUseCase = new RefreshTokenUseCase(deps);
-    this.inviteAdminUseCase = new InviteAdminUseCase(deps);
-    this.acceptInvitationUseCase = new AcceptAdminInvitationUseCase(deps);
+    this.approveAdminUseCase = new ApproveAdminUseCase(deps);
+    this.declineAdminUseCase = new DeclineAdminUseCase(deps);
     this.approveSellerUseCase = new ApproveSellerUseCase(deps);
     this.declineSellerUseCase = new DeclineSellerUseCase(deps);
     this.approveDriverUseCase = new ApproveDriverUseCase(deps);
@@ -111,11 +110,11 @@ export class AuthService {
   refresh(input: RefreshTokenInput) {
     return this.refreshUseCase.execute(input);
   }
-  inviteAdmin(input: InviteAdminInput, actorId: string) {
-    return this.inviteAdminUseCase.execute(input, actorId);
+  approveAdmin(input: ApproveUserInput) {
+    return this.approveAdminUseCase.execute(input);
   }
-  acceptInvitation(input: AcceptAdminInvitationInput) {
-    return this.acceptInvitationUseCase.execute(input);
+  declineAdmin(input: ApproveUserInput) {
+    return this.declineAdminUseCase.execute(input);
   }
   approveSeller(input: ApproveUserInput) {
     return this.approveSellerUseCase.execute(input);

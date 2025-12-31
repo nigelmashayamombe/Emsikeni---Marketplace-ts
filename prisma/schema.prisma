@@ -65,23 +65,9 @@ model User {
   documents     Document[]
   driverDetail  DriverDetail?
 
-  // Invitations this user created
-  invitations Invitation[] @relation("UserInvitations")
 }
 
-model Invitation {
-  id         String    @id @default(uuid())
-  email      String
-  token      String    @unique
-  expiresAt  DateTime
-  accepted   Boolean   @default(false)
-  acceptedAt DateTime?
 
-  invitedById String?
-  invitedBy   User?   @relation("UserInvitations", fields: [invitedById], references: [id])
-
-  createdAt DateTime @default(now())
-}
 
 model Otp {
   id        String   @id @default(uuid())

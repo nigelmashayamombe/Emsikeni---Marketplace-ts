@@ -2,9 +2,7 @@ import { Router } from 'express';
 import { authController } from './auth.controller';
 import { validate } from '../../middlewares/validation.middleware';
 import {
-  acceptInvitationSchema,
   approveSchema,
-  inviteAdminSchema,
   loginSchema,
   refreshSchema,
   registerSchema,
@@ -24,17 +22,19 @@ router.post('/auth/login', validate(loginSchema), authController.login);
 router.post('/auth/refresh', validate(refreshSchema), authController.refresh);
 
 router.post(
-  '/auth/invite-admin',
+  '/auth/approve-admin',
   authMiddleware,
   requireRoles(Role.SUPER_ADMIN),
-  validate(inviteAdminSchema),
-  authController.inviteAdmin,
+  validate(approveSchema),
+  authController.approveAdmin,
 );
 
 router.post(
-  '/auth/accept-invitation',
-  validate(acceptInvitationSchema),
-  authController.acceptInvitation,
+  '/auth/decline-admin',
+  authMiddleware,
+  requireRoles(Role.SUPER_ADMIN),
+  validate(approveSchema),
+  authController.declineAdmin,
 );
 
 router.post(

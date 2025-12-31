@@ -9,17 +9,17 @@ type JwtSettings = {
 };
 
 export class TokenService implements ITokenService {
-  constructor(private readonly settings: JwtSettings) {}
+  constructor(private readonly settings: JwtSettings) { }
 
   async signAccessToken(payload: AccessTokenPayload): Promise<string> {
-    return jwt.sign(payload, this.settings.accessSecret, {
-      expiresIn: this.settings.accessExpiresIn,
+    return jwt.sign({ ...payload }, this.settings.accessSecret, {
+      expiresIn: this.settings.accessExpiresIn as any,
     });
   }
 
   async signRefreshToken(userId: string): Promise<string> {
     return jwt.sign({ sub: userId }, this.settings.refreshSecret, {
-      expiresIn: this.settings.refreshExpiresIn,
+      expiresIn: this.settings.refreshExpiresIn as any,
     });
   }
 

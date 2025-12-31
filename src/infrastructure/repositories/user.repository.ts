@@ -1,5 +1,6 @@
 import { prisma } from '../../config/prisma';
 import { AccountStatus } from '../../domain/enums/account-status.enum';
+import { Role } from '../../domain/enums/role.enum';
 import { DocumentType } from '../../domain/enums/document-type.enum';
 import { IUserRepository, CreateUserDTO, UpdateUserDTO } from '../../application/interfaces/repositories/user-repository.interface';
 
@@ -72,6 +73,9 @@ export class UserRepository implements IUserRepository {
 
   async update(id: string, data: UpdateUserDTO): Promise<any> {
     return prisma.user.update({ where: { id }, data });
+  }
+  async findSuperAdmins(): Promise<any[]> {
+    return prisma.user.findMany({ where: { role: Role.SUPER_ADMIN } });
   }
 }
 

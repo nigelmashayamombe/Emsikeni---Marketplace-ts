@@ -8,7 +8,6 @@ import { Email } from '../../domain/value-objects/email.vo';
 import { Password } from '../../domain/value-objects/password.vo';
 import { PhoneNumber } from '../../domain/value-objects/phone.vo';
 import { IEmailTokenRepository } from '../interfaces/repositories/email-token-repository.interface';
-import { IInvitationRepository } from '../interfaces/repositories/invitation-repository.interface';
 import { IOtpRepository } from '../interfaces/repositories/otp-repository.interface';
 import { IRefreshTokenRepository } from '../interfaces/repositories/refresh-token-repository.interface';
 import { IUserRepository } from '../interfaces/repositories/user-repository.interface';
@@ -17,9 +16,7 @@ import { IHashService } from '../interfaces/services/hash-service.interface';
 import { IOtpService } from '../interfaces/services/otp-service.interface';
 import { ITokenService } from '../interfaces/services/token-service.interface';
 import {
-  AcceptAdminInvitationInput,
   ApproveUserInput,
-  InviteAdminInput,
   LoginInput,
   RefreshTokenInput,
   RegisterUserInput,
@@ -34,7 +31,6 @@ type Dependencies = {
   userRepo: IUserRepository;
   otpRepo: IOtpRepository;
   emailTokenRepo: IEmailTokenRepository;
-  invitationRepo: IInvitationRepository;
   refreshTokenRepo: IRefreshTokenRepository;
   emailService: IEmailService;
   tokenService: ITokenService;
@@ -45,17 +41,12 @@ type Dependencies = {
 };
 
 export class RegisterUserUseCase {
-  constructor(private readonly deps: Dependencies) {}
+  constructor(private readonly deps: Dependencies) { }
 
   async execute(input: RegisterUserInput): Promise<{ userId: string }> {
     const isFirstUser = (await this.deps.userRepo.count()) === 0;
-    if (input.role === Role.ADMIN) {
-      throw new AppError({
-        message: 'Admin registration requires invitation',
-        statusCode: 403,
-        code: 'FORBIDDEN',
-      });
-    }
+
+    // SuperAdmin creation only allowed for first user
     if (input.role === Role.SUPER_ADMIN && !isFirstUser) {
       throw new AppError({
         message: 'SuperAdmin already exists',
@@ -198,7 +189,7 @@ export class RegisterUserUseCase {
 }
 
 export class VerifyEmailUseCase {
-  constructor(private readonly deps: Dependencies) {}
+  constructor(private readonly deps: Dependencies) { }
 
   async execute(input: VerifyEmailInput): Promise<void> {
     const tokenRecord = await this.deps.emailTokenRepo.findValid(
@@ -228,13 +219,15 @@ export class VerifyEmailUseCase {
       phone: PhoneNumber.create(user.phone),
     });
     if (domainUser.shouldAutoActivate()) {
-      await this.deps.userRepo.setStatus(userId, AccountStatus.ACTIVE);
+      if (domainUser.role !== Role.ADMIN) {
+        await this.deps.userRepo.setStatus(userId, AccountStatus.ACTIVE);
+      }
     }
   }
 }
 
 export class VerifyPhoneUseCase {
-  constructor(private readonly deps: Dependencies) {}
+  constructor(private readonly deps: Dependencies) { }
 
   async execute(input: VerifyPhoneInput): Promise<void> {
     const phone = PhoneNumber.create(input.phone).getValue();
@@ -270,13 +263,15 @@ export class VerifyPhoneUseCase {
       phone: PhoneNumber.create(user.phone),
     });
     if (domainUser.shouldAutoActivate()) {
-      await this.deps.userRepo.setStatus(userId, AccountStatus.ACTIVE);
+      if (domainUser.role !== Role.ADMIN) {
+        await this.deps.userRepo.setStatus(userId, AccountStatus.ACTIVE);
+      }
     }
   }
 }
 
 export class LoginUseCase {
-  constructor(private readonly deps: Dependencies) {}
+  constructor(private readonly deps: Dependencies) { }
 
   async execute(input: LoginInput): Promise<{ tokens: Tokens }> {
     const user = await this.deps.userRepo.findByEmail(input.email.toLowerCase());
@@ -327,7 +322,7 @@ export class LoginUseCase {
 }
 
 export class RefreshTokenUseCase {
-  constructor(private readonly deps: Dependencies) {}
+  constructor(private readonly deps: Dependencies) { }
 
   async execute(input: RefreshTokenInput): Promise<{ tokens: Tokens }> {
     const payload = await this.deps.tokenService.verifyRefreshToken(input.refreshToken);
@@ -365,116 +360,42 @@ export class RefreshTokenUseCase {
   }
 }
 
-export class InviteAdminUseCase {
-  constructor(private readonly deps: Dependencies) {}
+export class ApproveAdminUseCase {
+  constructor(private readonly deps: Dependencies) { }
 
-  async execute(input: InviteAdminInput, actorId: string): Promise<void> {
-    const inviter = await this.deps.userRepo.findById(actorId);
-    if (!inviter || inviter.role !== Role.SUPER_ADMIN) {
-      throw new AppError({ message: 'Only SuperAdmin can invite admins', statusCode: 403 });
+  async execute(input: ApproveUserInput): Promise<void> {
+    const user = await this.deps.userRepo.findById(input.userId);
+    if (!user || user.role !== Role.ADMIN) {
+      throw new AppError({ message: 'Admin not found', statusCode: 404 });
     }
-
-    const token = randomUUID();
-    const invitation = await this.deps.invitationRepo.create({
-      email: Email.create(input.email).getValue(),
-      token,
-      invitedById: actorId,
-      expiresAt: this.addDays(3),
+    await this.deps.userRepo.setStatus(user.id, AccountStatus.ACTIVE);
+    await this.deps.emailService.sendApprovalNotification({
+      to: user.email,
+      approved: true,
+      role: Role.ADMIN,
     });
-
-    await this.deps.emailService.sendAdminInvitation({
-      to: invitation.email,
-      invitationToken: token,
-      invitedBy: inviter.email,
-    });
-  }
-
-  private addDays(days: number): Date {
-    const date = new Date();
-    date.setDate(date.getDate() + days);
-    return date;
   }
 }
 
-export class AcceptAdminInvitationUseCase {
-  constructor(private readonly deps: Dependencies) {}
+export class DeclineAdminUseCase {
+  constructor(private readonly deps: Dependencies) { }
 
-  async execute(input: AcceptAdminInvitationInput): Promise<{ userId: string }> {
-    const invitation = await this.deps.invitationRepo.findByToken(input.token);
-    if (!invitation || invitation.expiresAt < new Date() || invitation.accepted) {
-      throw new AppError({ message: 'Invalid or expired invitation', statusCode: 400 });
+  async execute(input: ApproveUserInput): Promise<void> {
+    const user = await this.deps.userRepo.findById(input.userId);
+    if (!user || user.role !== Role.ADMIN) {
+      throw new AppError({ message: 'Admin not found', statusCode: 404 });
     }
-
-    const existingUserByEmail = await this.deps.userRepo.findByEmail(invitation.email);
-    if (existingUserByEmail) {
-      throw new AppError({ message: 'Email already registered', statusCode: 409, code: 'DUPLICATE_EMAIL' });
-    }
-    const existingUserByPhone = await this.deps.userRepo.findByPhone(
-      PhoneNumber.create(input.phone).getValue(),
-    );
-    if (existingUserByPhone) {
-      throw new AppError({ message: 'Phone already registered', statusCode: 409, code: 'DUPLICATE_PHONE' });
-    }
-
-    const passwordHash = await this.deps.hashService.hash(
-      Password.create(input.password).getValue(),
-    );
-
-    const created = await this.deps.userRepo.create({
-      email: invitation.email,
-      phone: PhoneNumber.create(input.phone).getValue(),
-      passwordHash,
+    await this.deps.userRepo.setStatus(user.id, AccountStatus.DECLINED);
+    await this.deps.emailService.sendApprovalNotification({
+      to: user.email,
+      approved: false,
       role: Role.ADMIN,
-      status: AccountStatus.PENDING,
-      invitationId: invitation.id,
     });
-
-    await this.deps.invitationRepo.markAccepted(invitation.id);
-
-    // send verification artifacts
-    const emailToken = randomUUID();
-    await this.deps.emailTokenRepo.create({
-      userId: created.id,
-      token: emailToken,
-      type: EmailTokenType.EMAIL_VERIFICATION,
-      expiresAt: this.addDays(3),
-    });
-    await this.deps.emailService.sendEmailVerification({
-      to: invitation.email,
-      token: emailToken,
-    });
-
-    const otp = this.deps.otpService.generateCode();
-    await this.deps.otpRepo.createOtp({
-      userId: created.id,
-      codeHash: await this.deps.otpService.hashCode(otp),
-      type: OtpType.PHONE,
-      expiresAt: this.addMinutes(this.deps.otpExpiryMinutes),
-    });
-    await this.deps.otpService.sendOtp({
-      phone: input.phone,
-      code: otp,
-      type: OtpType.PHONE,
-    });
-
-    return { userId: created.id };
-  }
-
-  private addDays(days: number): Date {
-    const date = new Date();
-    date.setDate(date.getDate() + days);
-    return date;
-  }
-
-  private addMinutes(minutes: number): Date {
-    const date = new Date();
-    date.setMinutes(date.getMinutes() + minutes);
-    return date;
   }
 }
 
 export class ApproveSellerUseCase {
-  constructor(private readonly deps: Dependencies) {}
+  constructor(private readonly deps: Dependencies) { }
 
   async execute(input: ApproveUserInput): Promise<void> {
     const user = await this.deps.userRepo.findById(input.userId);
@@ -491,7 +412,7 @@ export class ApproveSellerUseCase {
 }
 
 export class DeclineSellerUseCase {
-  constructor(private readonly deps: Dependencies) {}
+  constructor(private readonly deps: Dependencies) { }
 
   async execute(input: ApproveUserInput): Promise<void> {
     const user = await this.deps.userRepo.findById(input.userId);
@@ -508,7 +429,7 @@ export class DeclineSellerUseCase {
 }
 
 export class ApproveDriverUseCase {
-  constructor(private readonly deps: Dependencies) {}
+  constructor(private readonly deps: Dependencies) { }
 
   async execute(input: ApproveUserInput): Promise<void> {
     const user = await this.deps.userRepo.findById(input.userId);
@@ -525,7 +446,7 @@ export class ApproveDriverUseCase {
 }
 
 export class DeclineDriverUseCase {
-  constructor(private readonly deps: Dependencies) {}
+  constructor(private readonly deps: Dependencies) { }
 
   async execute(input: ApproveUserInput): Promise<void> {
     const user = await this.deps.userRepo.findById(input.userId);

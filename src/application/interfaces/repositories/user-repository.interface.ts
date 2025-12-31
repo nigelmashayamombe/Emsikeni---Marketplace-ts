@@ -44,5 +44,6 @@ export interface IUserRepository {
     },
   ): Promise<void>;
   updatePassword(id: string, passwordHash: string): Promise<void>;
+  findSuperAdmins(): Promise<any[]>;
 }
 

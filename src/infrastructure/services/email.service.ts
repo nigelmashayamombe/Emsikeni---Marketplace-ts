@@ -35,17 +35,18 @@ export class EmailService implements IEmailService {
     });
   }
 
-  async sendAdminInvitation(params: {
+  async sendAdminActivationRequest(params: {
     to: string;
-    invitationToken: string;
-    invitedBy?: string;
+    newAdminName: string;
+    newAdminEmail: string;
   }): Promise<void> {
-    const inviteLink = `${this.settings.appBaseUrl}/api/v1/auth/accept-invitation?token=${params.invitationToken}`;
+    const activateLink = `${this.settings.appBaseUrl}/api/v1/auth/approve-admin?email=${params.newAdminEmail}`; // This link might need to point to a frontend page or be an API call action button in email
+    // For now, let's assume it points to a dashboard or just notifies the super admin
     await this.transporter.sendMail({
       from: this.settings.from,
       to: params.to,
-      subject: 'Admin invitation',
-      text: `You have been invited to admin portal by ${params.invitedBy ?? 'system'}. Accept: ${inviteLink}`,
+      subject: 'New Admin Registration Requires Approval',
+      text: `A new admin has registered.\nName: ${params.newAdminName}\nEmail: ${params.newAdminEmail}\n\nPlease login to the Super Admin dashboard to approve or decline this request.`,
     });
   }
 

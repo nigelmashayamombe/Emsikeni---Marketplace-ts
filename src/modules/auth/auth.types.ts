@@ -102,17 +102,7 @@ export const refreshSchema = z.object({
   refreshToken: z.string().min(10),
 });
 
-export const inviteAdminSchema = z.object({
-  email: z.string().email(),
-  phone: z.string().min(8),
-  fullName: z.string().optional(),
-});
 
-export const acceptInvitationSchema = z.object({
-  token: z.string(),
-  password: z.string().min(8),
-  phone: z.string().min(8),
-});
 
 export const approveSchema = z.object({
   userId: z.string().uuid(),
