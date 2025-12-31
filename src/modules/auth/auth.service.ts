@@ -15,17 +15,7 @@ import {
   VerifyEmailUseCase,
   VerifyPhoneUseCase,
 } from '../../application/use-cases/auth.use-cases';
-import { EmailTokenRepository } from '../../infrastructure/repositories/email-token.repository';
-
-import { OtpRepository } from '../../infrastructure/repositories/otp.repository';
-import { RefreshTokenRepository } from '../../infrastructure/repositories/refresh-token.repository';
-import { UserRepository } from '../../infrastructure/repositories/user.repository';
-import { EmailService } from '../../infrastructure/services/email.service';
-import { OtpService } from '../../infrastructure/services/otp.service';
-import { TokenService } from '../../infrastructure/services/token.service';
-import { HashService } from '../../infrastructure/services/hash.service';
 import {
-
   ApproveUserInput,
   LoginInput,
   RefreshTokenInput,
@@ -33,6 +23,15 @@ import {
   VerifyEmailInput,
   VerifyPhoneInput,
 } from '../../application/dtos/auth.dto';
+import { EmailTokenRepository } from '../../infrastructure/repositories/email-token.repository';
+import { OtpRepository } from '../../infrastructure/repositories/otp.repository';
+import { RefreshTokenRepository } from '../../infrastructure/repositories/refresh-token.repository';
+import { UserRepository } from '../../infrastructure/repositories/user.repository';
+import { EmailService } from '../../infrastructure/services/email.service';
+import { OtpService } from '../../infrastructure/services/otp.service';
+import { TokenService } from '../../infrastructure/services/token.service';
+import { LocalFileStorageService } from '../../infrastructure/services/local-file-storage.service';
+import { HashService } from '../../infrastructure/services/hash.service';
 
 export class AuthService {
   private readonly registerUseCase: RegisterUserUseCase;
@@ -60,13 +59,11 @@ export class AuthService {
       smtpPort: config.email.smtpPort,
       smtpUser: config.email.smtpUser,
       smtpPassword: config.email.smtpPassword,
-      appBaseUrl:
-        config.nodeEnv === 'production'
-          ? config.email.smtpHost
-          : `http://localhost:${config.port}`,
+      appBaseUrl: config.appBaseUrl,
     });
     const otpService = new OtpService();
     const hashService = new HashService();
+    const storageService = new LocalFileStorageService();
 
     const deps = {
       userRepo,
@@ -78,6 +75,7 @@ export class AuthService {
       tokenService,
       otpService,
       hashService,
+      storageService,
       otpExpiryMinutes: config.otpExpiryMinutes,
       refreshTokenTtlDays: config.refreshTokenTtlDays,
     };
@@ -98,33 +96,43 @@ export class AuthService {
   register(input: RegisterUserInput) {
     return this.registerUseCase.execute(input);
   }
+
   verifyEmail(input: VerifyEmailInput) {
     return this.verifyEmailUseCase.execute(input);
   }
+
   verifyPhone(input: VerifyPhoneInput) {
     return this.verifyPhoneUseCase.execute(input);
   }
+
   login(input: LoginInput) {
     return this.loginUseCase.execute(input);
   }
+
   refresh(input: RefreshTokenInput) {
     return this.refreshUseCase.execute(input);
   }
+
   approveAdmin(input: ApproveUserInput) {
     return this.approveAdminUseCase.execute(input);
   }
+
   declineAdmin(input: ApproveUserInput) {
     return this.declineAdminUseCase.execute(input);
   }
+
   approveSeller(input: ApproveUserInput) {
     return this.approveSellerUseCase.execute(input);
   }
+
   declineSeller(input: ApproveUserInput) {
     return this.declineSellerUseCase.execute(input);
   }
+
   approveDriver(input: ApproveUserInput) {
     return this.approveDriverUseCase.execute(input);
   }
+
   declineDriver(input: ApproveUserInput) {
     return this.declineDriverUseCase.execute(input);
   }

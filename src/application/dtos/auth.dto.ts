@@ -18,6 +18,7 @@ export type RegisterUserInput = {
     vehicleModel?: string;
     vehicleNumberPlate?: string;
   };
+  files?: { [fieldname: string]: Express.Multer.File[] };
 };
 
 export type VerifyEmailInput = {

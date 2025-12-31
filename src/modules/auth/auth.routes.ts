@@ -13,9 +13,11 @@ import { authMiddleware } from '../../middlewares/auth.middleware';
 import { requireRoles } from '../../middlewares/role.middleware';
 import { Role } from '../../domain/enums/role.enum';
 
+import { uploadMiddleware } from '../../middlewares/upload.middleware';
+
 const router = Router();
 
-router.post('/auth/register', validate(registerSchema), authController.register);
+router.post('/auth/register', uploadMiddleware, validate(registerSchema), authController.register);
 router.post('/auth/verify-email', validate(verifyEmailSchema), authController.verifyEmail);
 router.post('/auth/verify-phone', validate(verifyPhoneSchema), authController.verifyPhone);
 router.post('/auth/login', validate(loginSchema), authController.login);

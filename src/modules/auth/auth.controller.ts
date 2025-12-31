@@ -5,7 +5,23 @@ import { Role } from '../../domain/enums/role.enum';
 
 export class AuthController {
   register = async (req: Request, res: Response) => {
-    const result = await authService.register(req.body);
+    const { body, files } = req;
+
+    // Parse driver details if stringified (multipart/form-data)
+    if (body.driver && typeof body.driver === 'string') {
+      try {
+        body.driver = JSON.parse(body.driver);
+      } catch (e) {
+        throw new AppError({ message: 'Invalid driver details format', statusCode: 400 });
+      }
+    }
+
+    const input: any = {
+      ...body,
+      files: files as { [fieldname: string]: Express.Multer.File[] },
+    };
+
+    const result = await authService.register(input);
     res.status(201).json({ success: true, data: result });
   };
 

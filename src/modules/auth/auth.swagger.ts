@@ -114,8 +114,35 @@ export const buildSwaggerSpec = () => {
             requestBody: {
               required: true,
               content: {
-                'application/json': {
-                  schema: { $ref: '#/components/schemas/RegisterRequest' },
+                'multipart/form-data': {
+                  schema: {
+                    type: 'object',
+                    required: ['email', 'phone', 'password', 'role', 'nationalId', 'proofOfResidence', 'profilePicture'],
+                    properties: {
+                      email: { type: 'string', format: 'email' },
+                      phone: { type: 'string' },
+                      password: { type: 'string', minLength: 8 },
+                      role: {
+                        type: 'string',
+                        enum: ['SUPER_ADMIN', 'ADMIN', 'SELLER', 'BUYER', 'DRIVER'],
+                      },
+                      fullName: { type: 'string' },
+                      address: { type: 'string' },
+                      gender: { type: 'string' },
+                      dateOfBirth: { type: 'string', format: 'date' },
+                      // File fields
+                      nationalId: { type: 'string', format: 'binary' },
+                      proofOfResidence: { type: 'string', format: 'binary' },
+                      profilePicture: { type: 'string', format: 'binary' },
+                      driverLicense: { type: 'string', format: 'binary', description: 'Required if role is DRIVER' },
+                      vehicleDocument: { type: 'string', format: 'binary', description: 'Required if role is DRIVER' },
+                      // Driver details (as JSON string)
+                      driver: {
+                        type: 'string',
+                        description: 'JSON string for driver details (licenseNumber, vehicleMake, vehicleModel, vehicleNumberPlate)',
+                      },
+                    },
+                  },
                 },
               },
             },

@@ -21,6 +21,7 @@ export type AppConfig = {
   nodeEnv: string;
   port: number;
   databaseUrl: string;
+  appBaseUrl: string;
   jwt: JwtConfig;
   email: EmailConfig;
   otpExpiryMinutes: number;
@@ -44,6 +45,7 @@ export const config: AppConfig = {
   nodeEnv: process.env.NODE_ENV ?? 'development',
   port: Number(process.env.PORT ?? 3000),
   databaseUrl: requireEnv('DATABASE_URL'),
+  appBaseUrl: process.env.APP_BASE_URL ?? `http://localhost:${Number(process.env.PORT ?? 3000)}`,
   jwt: {
     accessSecret: requireEnv('JWT_ACCESS_SECRET'),
     accessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN ?? '15m',
@@ -61,10 +63,10 @@ export const config: AppConfig = {
   refreshTokenTtlDays: Number(process.env.REFRESH_TOKEN_TTL_DAYS ?? 2),
   sms: process.env.SMS_API_URL && process.env.SMS_API_KEY
     ? {
-        apiUrl: process.env.SMS_API_URL,
-        apiKey: process.env.SMS_API_KEY,
-        sender: process.env.SMS_SENDER,
-      }
+      apiUrl: process.env.SMS_API_URL,
+      apiKey: process.env.SMS_API_KEY,
+      sender: process.env.SMS_SENDER,
+    }
     : undefined,
 };
 

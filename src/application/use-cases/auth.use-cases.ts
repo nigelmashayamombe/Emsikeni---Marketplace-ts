@@ -24,6 +24,8 @@ import {
   VerifyPhoneInput,
   Tokens,
 } from '../dtos/auth.dto';
+import { config } from '../../config/env';
+import { IFileStorageService } from '../../application/interfaces/services/file-storage.interface';
 import { AppError } from '../../shared/errors/app-error';
 import { User } from '../../domain/entities/user.entity';
 
@@ -36,6 +38,7 @@ type Dependencies = {
   tokenService: ITokenService;
   otpService: IOtpService;
   hashService: IHashService;
+  storageService: IFileStorageService;
   otpExpiryMinutes: number;
   refreshTokenTtlDays: number;
 };
@@ -44,6 +47,45 @@ export class RegisterUserUseCase {
   constructor(private readonly deps: Dependencies) { }
 
   async execute(input: RegisterUserInput): Promise<{ userId: string }> {
+    // Check for duplicate user
+    const email = Email.create(input.email);
+    const existingByEmail = await this.deps.userRepo.findByEmail(email.getValue());
+    if (existingByEmail) {
+      throw new AppError({ message: 'Email already registered', statusCode: 409, code: 'DUPLICATE_EMAIL' });
+    }
+    const phone = PhoneNumber.create(input.phone);
+    const existingByPhone = await this.deps.userRepo.findByPhone(phone.getValue());
+    if (existingByPhone) {
+      throw new AppError({ message: 'Phone already registered', statusCode: 409, code: 'DUPLICATE_PHONE' });
+    }
+
+    // Process File Uploads
+    const uploadedDocs: Partial<Record<DocumentType, string>> = {};
+    if (input.files) {
+      for (const [fieldName, files] of Object.entries(input.files)) {
+        if (files && files.length > 0) {
+          const file = files[0];
+          const url = await this.deps.storageService.save({
+            buffer: file.buffer,
+            mimeType: file.mimetype,
+          });
+
+          // Map field names to DocumentType
+          // Assuming field names match DocumentType values (e.g., 'nationalId', 'proofOfResidence')
+          // Or we have a mapping. For now, let's cast if it matches.
+          if (Object.values(DocumentType).includes(fieldName as DocumentType)) {
+            uploadedDocs[fieldName as DocumentType] = url;
+          }
+        }
+      }
+    }
+
+    // Merge uploaded documents with any existing documents in input (logic requirement)
+    // Actually, input.documents might be empty if we rely solely on uploads now.
+    // Let's ensure requirements are checked against the final set of documents.
+
+    const finalDocuments = { ...input.documents, ...uploadedDocs };
+
     const isFirstUser = (await this.deps.userRepo.count()) === 0;
 
     // SuperAdmin creation only allowed for first user
@@ -58,19 +100,9 @@ export class RegisterUserUseCase {
     const role = isFirstUser ? Role.SUPER_ADMIN : input.role;
     const isSuperAdmin = role === Role.SUPER_ADMIN;
 
-    const email = Email.create(input.email);
-    const phone = PhoneNumber.create(input.phone);
     const password = Password.create(input.password);
     const passwordHash = await this.deps.hashService.hash(password.getValue());
 
-    const existingByEmail = await this.deps.userRepo.findByEmail(email.getValue());
-    if (existingByEmail) {
-      throw new AppError({ message: 'Email already registered', statusCode: 409, code: 'DUPLICATE_EMAIL' });
-    }
-    const existingByPhone = await this.deps.userRepo.findByPhone(phone.getValue());
-    if (existingByPhone) {
-      throw new AppError({ message: 'Phone already registered', statusCode: 409, code: 'DUPLICATE_PHONE' });
-    }
 
     if (role === Role.BUYER) {
       const requiredBuyerFields = ['fullName', 'address', 'gender', 'dateOfBirth', 'nationalId'] as const;
@@ -89,24 +121,15 @@ export class RegisterUserUseCase {
         role === Role.DRIVER ? [DocumentType.DRIVER_LICENSE, DocumentType.VEHICLE_DOCUMENT] : [];
       const expectedDocs = [...requiredDocuments, ...driverDocuments];
 
-      const allDocKeys = Object.keys(input.documents ?? {});
-      const allowedDocTypes = Object.values(DocumentType);
-      const invalidDocTypes = allDocKeys.filter((key) => !allowedDocTypes.includes(key as DocumentType));
-      if (invalidDocTypes.length) {
+      const missingDocs = expectedDocs.filter(doc => !finalDocuments[doc]);
+
+      if (missingDocs.length > 0) {
         throw new AppError({
-          message: `Invalid document types: ${invalidDocTypes.join(', ')}`,
+          message: `Missing required documents: ${missingDocs.join(', ')}`,
           statusCode: 400,
         });
       }
 
-      if (!input.documents || expectedDocs.some((doc) => !input.documents?.[doc])) {
-        throw new AppError({
-          message: `Missing required documents: ${expectedDocs
-            .filter((doc) => !input.documents?.[doc])
-            .join(', ')}`,
-          statusCode: 400,
-        });
-      }
       if (role === Role.DRIVER && (!input.driver?.licenseNumber || !input.driver?.vehicleNumberPlate)) {
         throw new AppError({
           message: 'Driver license number and vehicle number plate are required',
@@ -133,19 +156,16 @@ export class RegisterUserUseCase {
       throw new AppError({ message: 'User creation failed', statusCode: 500 });
     }
 
-    if (input.documents) {
-      const allowedDocTypes = new Set<DocumentType>(Object.values(DocumentType));
-      const documents = Object.entries(input.documents)
-        .filter(([type]) => allowedDocTypes.has(type as DocumentType))
-        .map(([type, url]) => ({
-          type: type as DocumentType,
-          url,
-        }));
-      if (documents.length) {
-        await this.deps.userRepo.addDocuments(created.id, documents);
-      }
+    // Persist documents
+    if (Object.keys(finalDocuments).length > 0) {
+      const documentsToSave = Object.entries(finalDocuments).map(([type, url]) => ({
+        type: type as DocumentType,
+        url: url as string
+      }));
+      await this.deps.userRepo.addDocuments(created.id, documentsToSave);
     }
 
+    // ... rest of the logic (driver details, tokens) - handled below by just keeping existing code or merging
     if (input.driver) {
       await this.deps.userRepo.setDriverDetail(created.id, input.driver);
     }
