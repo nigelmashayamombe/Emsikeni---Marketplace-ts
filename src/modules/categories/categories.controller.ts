@@ -12,7 +12,7 @@ import { CreateCategoryInput, UpdateCategoryInput } from './categories.types';
 class CategoriesController {
     /**
      * @swagger
-     * /categories:
+     * /api/v1/categories:
      *   post:
      *     summary: Create a new category
      *     tags: [Categories]
@@ -49,7 +49,7 @@ class CategoriesController {
 
     /**
      * @swagger
-     * /categories:
+     * /api/v1/categories:
      *   get:
      *     summary: Get all categories (hierarchical)
      *     tags: [Categories]
@@ -70,7 +70,7 @@ class CategoriesController {
 
     /**
      * @swagger
-     * /categories/{id}:
+     * /api/v1/categories/{id}:
      *   put:
      *     summary: Update a category
      *     tags: [Categories]
@@ -116,7 +116,7 @@ class CategoriesController {
 
     /**
      * @swagger
-     * /categories/{id}:
+     * /api/v1/categories/{id}:
      *   delete:
      *     summary: Delete a category
      *     tags: [Categories]
