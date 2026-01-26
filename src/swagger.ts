@@ -113,6 +113,73 @@ export const buildSwaggerSpec = () => {
                         }
                     },
 
+                    // --- Product Schemas ---
+                    Product: {
+                        type: 'object',
+                        properties: {
+                            id: { type: 'string', format: 'uuid' },
+                            name: { type: 'string' },
+                            description: { type: 'string' },
+                            price: { type: 'number', format: 'float' },
+                            quantity: { type: 'integer' },
+                            images: { type: 'array', items: { type: 'string', format: 'uri' } },
+                            status: { $ref: '#/components/schemas/ProductStatus' },
+                            rejectionReason: { type: 'string', nullable: true },
+                            sellerId: { type: 'string', format: 'uuid' },
+                            categoryId: { type: 'string', format: 'uuid' },
+                            createdAt: { type: 'string', format: 'date-time' },
+                            updatedAt: { type: 'string', format: 'date-time' }
+                        }
+                    },
+                    ProductStatus: {
+                        type: 'string',
+                        enum: ['DRAFT', 'PENDING_REVIEW', 'APPROVED', 'REJECTED', 'OUT_OF_STOCK']
+                    },
+                    CreateProductRequest: {
+                        type: 'object',
+                        required: ['name', 'description', 'price', 'quantity', 'categoryId'],
+                        properties: {
+                            name: { type: 'string', minLength: 3 },
+                            description: { type: 'string', minLength: 10 },
+                            price: { type: 'number', minimum: 0 },
+                            quantity: { type: 'integer', minimum: 0 },
+                            categoryId: { type: 'string', format: 'uuid' },
+                            status: { $ref: '#/components/schemas/ProductStatus' },
+                            images: {
+                                type: 'array',
+                                items: { type: 'string', format: 'binary' },
+                                description: 'Images to upload (max 5)'
+                            }
+                        }
+                    },
+                    UpdateProductRequest: {
+                        type: 'object',
+                        properties: {
+                            name: { type: 'string', minLength: 3 },
+                            description: { type: 'string', minLength: 10 },
+                            price: { type: 'number', minimum: 0 },
+                            quantity: { type: 'integer', minimum: 0 },
+                            categoryId: { type: 'string', format: 'uuid' },
+                            status: { $ref: '#/components/schemas/ProductStatus' },
+                            images: {
+                                type: 'array',
+                                items: { type: 'string', format: 'binary' },
+                                description: 'Additional images to upload'
+                            }
+                        }
+                    },
+                    ReviewProductRequest: {
+                        type: 'object',
+                        required: ['status'],
+                        properties: {
+                            status: {
+                                type: 'string',
+                                enum: ['APPROVED', 'REJECTED']
+                            },
+                            rejectionReason: { type: 'string' }
+                        }
+                    },
+
                     // --- Shared Schemas ---
                     ErrorResponse: {
                         type: 'object',
@@ -353,6 +420,142 @@ export const buildSwaggerSpec = () => {
                         },
                     },
                 },
+
+                // --- Product Paths ---
+                '/api/v1/products': {
+                    get: {
+                        tags: ['Products'],
+                        summary: 'List public approved products',
+                        parameters: [
+                            { in: 'query', name: 'categoryId', schema: { type: 'string', format: 'uuid' } },
+                            { in: 'query', name: 'sellerId', schema: { type: 'string', format: 'uuid' } }
+                        ],
+                        responses: {
+                            200: {
+                                description: 'List of products',
+                                content: {
+                                    'application/json': {
+                                        schema: { type: 'array', items: { $ref: '#/components/schemas/Product' } }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    post: {
+                        tags: ['Products'],
+                        summary: 'Create a product (Seller only)',
+                        security: [{ bearerAuth: [] }],
+                        requestBody: {
+                            required: true,
+                            content: {
+                                'multipart/form-data': {
+                                    schema: { $ref: '#/components/schemas/CreateProductRequest' }
+                                }
+                            }
+                        },
+                        responses: {
+                            201: { description: 'Product created', content: { 'application/json': { schema: { $ref: '#/components/schemas/Product' } } } },
+                            400: { description: 'Validation error', content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+                        }
+                    }
+                },
+                '/api/v1/products/{id}': {
+                    get: {
+                        tags: ['Products'],
+                        summary: 'Get public product by ID',
+                        parameters: [
+                            { in: 'path', name: 'id', required: true, schema: { type: 'string', format: 'uuid' } }
+                        ],
+                        responses: {
+                            200: { description: 'Product details', content: { 'application/json': { schema: { $ref: '#/components/schemas/Product' } } } },
+                            404: { description: 'not found', content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+                        }
+                    },
+                    put: {
+                        tags: ['Products'],
+                        summary: 'Update product (Seller only)',
+                        security: [{ bearerAuth: [] }],
+                        parameters: [
+                            { in: 'path', name: 'id', required: true, schema: { type: 'string', format: 'uuid' } }
+                        ],
+                        requestBody: {
+                            required: true,
+                            content: {
+                                'multipart/form-data': {
+                                    schema: { $ref: '#/components/schemas/UpdateProductRequest' }
+                                }
+                            }
+                        },
+                        responses: {
+                            200: { description: 'Product updated', content: { 'application/json': { schema: { $ref: '#/components/schemas/Product' } } } },
+                            404: { description: 'not found', content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+                        }
+                    },
+                    delete: {
+                        tags: ['Products'],
+                        summary: 'Soft delete product (Seller only)',
+                        security: [{ bearerAuth: [] }],
+                        parameters: [
+                            { in: 'path', name: 'id', required: true, schema: { type: 'string', format: 'uuid' } }
+                        ],
+                        responses: {
+                            204: { description: 'Product deleted' },
+                            404: { description: 'not found', content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+                        }
+                    }
+                },
+                '/api/v1/products/my': {
+                    get: {
+                        tags: ['Products'],
+                        summary: 'List my products (Seller only)',
+                        security: [{ bearerAuth: [] }],
+                        responses: {
+                            200: {
+                                description: 'List of own products',
+                                content: {
+                                    'application/json': {
+                                        schema: { type: 'array', items: { $ref: '#/components/schemas/Product' } }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                '/api/v1/products/my/{id}': {
+                    get: {
+                        tags: ['Products'],
+                        summary: 'Get my product endpoint (Seller only)',
+                        security: [{ bearerAuth: [] }],
+                        parameters: [
+                            { in: 'path', name: 'id', required: true, schema: { type: 'string', format: 'uuid' } }
+                        ],
+                        responses: {
+                            200: { description: 'Product details', content: { 'application/json': { schema: { $ref: '#/components/schemas/Product' } } } },
+                            404: { description: 'not found' }
+                        }
+                    }
+                },
+                '/api/v1/products/{id}/review': {
+                    patch: {
+                        tags: ['Products'],
+                        summary: 'Review product (Admin only)',
+                        security: [{ bearerAuth: [] }],
+                        parameters: [
+                            { in: 'path', name: 'id', required: true, schema: { type: 'string', format: 'uuid' } }
+                        ],
+                        requestBody: {
+                            required: true,
+                            content: {
+                                'application/json': {
+                                    schema: { $ref: '#/components/schemas/ReviewProductRequest' }
+                                }
+                            }
+                        },
+                        responses: {
+                            200: { description: 'Product reviewed', content: { 'application/json': { schema: { $ref: '#/components/schemas/Product' } } } }
+                        }
+                    }
+                }
             },
         },
         // Search for JSDoc in all controller files

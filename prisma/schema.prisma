@@ -39,6 +39,14 @@ enum EmailTokenType {
   EMAIL_VERIFICATION
 }
 
+enum ProductStatus {
+  DRAFT
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+  OUT_OF_STOCK
+}
+
 model User {
   id            String        @id @default(uuid())
   email         String        @unique
@@ -64,7 +72,7 @@ model User {
   refreshTokens RefreshToken[]
   documents     Document[]
   driverDetail  DriverDetail?
-
+  products      Product[]
 }
 
 
@@ -129,6 +137,28 @@ model Category {
   parentId  String?
   parent    Category?  @relation("CategoryToCategory", fields: [parentId], references: [id])
   children  Category[] @relation("CategoryToCategory")
+  products  Product[]
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
+}
+
+model Product {
+  id              String        @id @default(uuid())
+  name            String
+  description     String
+  price           Decimal       @db.Decimal(10, 2)
+  quantity        Int
+  images          String[]
+  status          ProductStatus @default(DRAFT)
+  rejectionReason String?
+  
+  sellerId        String
+  seller          User          @relation(fields: [sellerId], references: [id])
+  
+  categoryId      String
+  category        Category      @relation(fields: [categoryId], references: [id])
+
+  deletedAt       DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 }
