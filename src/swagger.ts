@@ -559,7 +559,7 @@ export const buildSwaggerSpec = () => {
             },
         },
         // Search for JSDoc in all controller files
-        apis: ['./src/modules/**/*.controller.ts'],
+        apis: ['./src/modules/**/*.controller.ts', './src/modules/**/*.routes.ts'],
     };
 
     return swaggerJSDoc(options);

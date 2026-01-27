@@ -148,6 +148,7 @@ model Product {
   description     String
   price           Decimal       @db.Decimal(10, 2)
   quantity        Int
+  lowStockThreshold Int @default(5)
   images          String[]
   status          ProductStatus @default(DRAFT)
   rejectionReason String?
