@@ -180,6 +180,77 @@ export const buildSwaggerSpec = () => {
                         }
                     },
 
+
+                    // --- Order Schemas ---
+                    Order: {
+                        type: 'object',
+                        properties: {
+                            id: { type: 'string', format: 'uuid' },
+                            totalAmount: { type: 'number', format: 'float' },
+                            status: {
+                                type: 'string',
+                                enum: ['NEW', 'PACKED', 'READY_FOR_WAREHOUSE', 'SENT_TO_WAREHOUSE', 'RECEIVED_AT_WAREHOUSE']
+                            },
+                            paymentStatus: {
+                                type: 'string',
+                                enum: ['PENDING', 'PAID', 'FAILED']
+                            },
+                            items: {
+                                type: 'array',
+                                items: { $ref: '#/components/schemas/OrderItem' }
+                            },
+                            buyer: {
+                                type: 'object',
+                                properties: {
+                                    id: { type: 'string' },
+                                    fullName: { type: 'string' },
+                                    email: { type: 'string' },
+                                    phone: { type: 'string' },
+                                    address: { type: 'string' }
+                                }
+                            },
+                            createdAt: { type: 'string', format: 'date-time' },
+                            updatedAt: { type: 'string', format: 'date-time' }
+                        }
+                    },
+                    OrderItem: {
+                        type: 'object',
+                        properties: {
+                            id: { type: 'string', format: 'uuid' },
+                            productId: { type: 'string', format: 'uuid' },
+                            quantity: { type: 'integer' },
+                            price: { type: 'number', format: 'float' },
+                            product: { $ref: '#/components/schemas/Product' }
+                        }
+                    },
+                    UpdateOrderStatusRequest: {
+                        type: 'object',
+                        required: ['status'],
+                        properties: {
+                            status: {
+                                type: 'string',
+                                enum: ['NEW', 'PACKED', 'READY_FOR_WAREHOUSE', 'SENT_TO_WAREHOUSE', 'RECEIVED_AT_WAREHOUSE']
+                            }
+                        }
+                    },
+                    CreateOrderRequest: {
+                        type: 'object',
+                        required: ['items'],
+                        properties: {
+                            items: {
+                                type: 'array',
+                                items: {
+                                    type: 'object',
+                                    required: ['productId', 'quantity'],
+                                    properties: {
+                                        productId: { type: 'string', format: 'uuid' },
+                                        quantity: { type: 'integer', minimum: 1 }
+                                    }
+                                }
+                            }
+                        }
+                    },
+
                     // --- Shared Schemas ---
                     ErrorResponse: {
                         type: 'object',
@@ -193,6 +264,153 @@ export const buildSwaggerSpec = () => {
                 },
             },
             paths: {
+                // --- Order Paths (Seller View) ---
+                '/api/v1/orders/seller': {
+                    get: {
+                        tags: ['Orders'],
+                        summary: 'List my incoming orders (Seller only)',
+                        security: [{ bearerAuth: [] }],
+                        responses: {
+                            200: {
+                                description: 'List of orders',
+                                content: {
+                                    'application/json': {
+                                        schema: {
+                                            type: 'array',
+                                            items: { $ref: '#/components/schemas/Order' }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                '/api/v1/orders/seller/{id}': {
+                    get: {
+                        tags: ['Orders'],
+                        summary: 'Get order details (Seller only)',
+                        security: [{ bearerAuth: [] }],
+                        parameters: [
+                            { in: 'path', name: 'id', required: true, schema: { type: 'string', format: 'uuid' } }
+                        ],
+                        responses: {
+                            200: { description: 'Order details', content: { 'application/json': { schema: { $ref: '#/components/schemas/Order' } } } },
+                            404: { description: 'not found', content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+                        }
+                    }
+                },
+                '/api/v1/orders/seller/{id}/status': {
+                    patch: {
+                        tags: ['Orders'],
+                        summary: 'Update order status (Seller only)',
+                        description: 'Seller can mark items as NEW, PACKED, or READY_FOR_WAREHOUSE. Cannot change payment status.',
+                        security: [{ bearerAuth: [] }],
+                        parameters: [
+                            { in: 'path', name: 'id', required: true, schema: { type: 'string', format: 'uuid' } }
+                        ],
+                        requestBody: {
+                            required: true,
+                            content: {
+                                'application/json': {
+                                    schema: { $ref: '#/components/schemas/UpdateOrderStatusRequest' }
+                                }
+                            }
+                        },
+                        responses: {
+                            200: { description: 'Order status updated', content: { 'application/json': { schema: { $ref: '#/components/schemas/Order' } } } },
+                            404: { description: 'not found', content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+                        }
+                    }
+                },
+
+                '/api/v1/orders/admin/{id}/status': {
+                    patch: {
+                        tags: ['Orders'],
+                        summary: 'Update order status (Admin only)',
+                        description: 'Admin can update status to any value, including RECEIVED_AT_WAREHOUSE.',
+                        security: [{ bearerAuth: [] }],
+                        parameters: [
+                            { in: 'path', name: 'id', required: true, schema: { type: 'string', format: 'uuid' } }
+                        ],
+                        requestBody: {
+                            required: true,
+                            content: {
+                                'application/json': {
+                                    schema: { $ref: '#/components/schemas/UpdateOrderStatusRequest' }
+                                }
+                            }
+                        },
+                        responses: {
+                            200: { description: 'Order status updated', content: { 'application/json': { schema: { $ref: '#/components/schemas/Order' } } } },
+                            404: { description: 'not found', content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+                        }
+                    }
+                },
+
+                // --- Order Paths (Buyer View) ---
+                '/api/v1/orders/my': {
+                    post: {
+                        tags: ['Orders'],
+                        summary: 'Place a new order (Buyer only)',
+                        description: 'Creates orders from items. Splits orders if items are from different sellers.',
+                        security: [{ bearerAuth: [] }],
+                        requestBody: {
+                            required: true,
+                            content: {
+                                'application/json': {
+                                    schema: { $ref: '#/components/schemas/CreateOrderRequest' }
+                                }
+                            }
+                        },
+                        responses: {
+                            201: {
+                                description: 'Order(s) created',
+                                content: {
+                                    'application/json': {
+                                        schema: {
+                                            type: 'array',
+                                            items: { $ref: '#/components/schemas/Order' }
+                                        }
+                                    }
+                                }
+                            },
+                            400: { description: 'Validation or Stock error', content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+                        }
+                    },
+                    get: {
+                        tags: ['Orders'],
+                        summary: 'List my orders (Buyer only)',
+                        security: [{ bearerAuth: [] }],
+                        responses: {
+                            200: {
+                                description: 'My orders',
+                                content: {
+                                    'application/json': {
+                                        schema: {
+                                            type: 'array',
+                                            items: { $ref: '#/components/schemas/Order' }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                '/api/v1/orders/my/{id}': {
+                    get: {
+                        tags: ['Orders'],
+                        summary: 'Get my order details (Buyer only)',
+                        security: [{ bearerAuth: [] }],
+                        parameters: [
+                            { in: 'path', name: 'id', required: true, schema: { type: 'string', format: 'uuid' } }
+                        ],
+                        responses: {
+                            200: { description: 'Order details', content: { 'application/json': { schema: { $ref: '#/components/schemas/Order' } } } },
+                            404: { description: 'not found', content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+                        }
+                    }
+                },
+
                 // --- Auth Paths ---
                 '/api/v1/auth/register': {
                     post: {
