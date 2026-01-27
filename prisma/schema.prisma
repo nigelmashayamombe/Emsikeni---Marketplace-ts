@@ -73,6 +73,8 @@ model User {
   documents     Document[]
   driverDetail  DriverDetail?
   products      Product[]
+  purchases     Order[]   @relation("Purchases")
+  sales         Order[]   @relation("Sales")
 }
 
 
@@ -159,7 +161,54 @@ model Product {
   categoryId      String
   category        Category      @relation(fields: [categoryId], references: [id])
 
+  orderItems      OrderItem[]
+
   deletedAt       DateTime?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
+}
+
+enum OrderStatus {
+  NEW
+  PACKED
+  READY_FOR_WAREHOUSE
+  SENT_TO_WAREHOUSE
+  RECEIVED_AT_WAREHOUSE
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+}
+
+model Order {
+  id            String        @id @default(uuid())
+  
+  buyerId       String
+  buyer         User          @relation("Purchases", fields: [buyerId], references: [id])
+  
+  sellerId      String
+  seller        User          @relation("Sales", fields: [sellerId], references: [id])
+  
+  totalAmount   Decimal       @db.Decimal(10, 2)
+  status        OrderStatus   @default(NEW)
+  paymentStatus PaymentStatus @default(PENDING)
+  
+  items         OrderItem[]
+  
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model OrderItem {
+  id        String   @id @default(uuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id])
+  
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  
+  quantity  Int
+  price     Decimal  @db.Decimal(10, 2)
 }
